@@ -1,0 +1,10 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026-10-18
+  Features:
+    - Inserter throughput in the entity tooltip of hovered inserters and inserter ghosts.
+    - Takes into account hand size research, quality, circuit and manual stack size limits,
+      item stack sizes, stack inserter belt stacking and belt speeds.
+    - Live measured throughput while hovering.
+    - Optional throughput label above the hovered inserter.
+    - Remote interface "inserter-throughput" with function "analyze(entity)".

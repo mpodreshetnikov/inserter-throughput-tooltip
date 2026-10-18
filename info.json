@@ -1,0 +1,9 @@
+{
+  "name": "inserter-throughput-tooltip",
+  "version": "1.0.0",
+  "title": "Inserter Throughput Tooltip",
+  "author": "mpodreshetnikov",
+  "factorio_version": "2.1",
+  "description": "Hover any inserter (or inserter ghost) to see its maximum throughput in the entity tooltip: items per second with research hand-size bonuses, quality, circuit/manual stack limits, belt stacking and belt speeds taken into account.",
+  "dependencies": ["base >= 2.1.22", "? space-age", "? quality"]
+}
