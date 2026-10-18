@@ -7,6 +7,7 @@ local MIN_MEASURE = 60        -- ticks to wait before showing a measured rate
 local UPDATES_PER_TICK = 10   -- inserters whose tooltip is prepared in the background each tick (~0.5 ms)
 local CLEARS_PER_TICK = 200   -- inserters whose tooltip lines are removed each tick when preparing is off
 local MIN_REACH = 3           -- tiles around a changed entity searched for inserters that may use it
+local RECHECK_INTERVAL = 600  -- ticks between background updates of inserters with changing inputs
 
 -- Tooltips are written into every inserter ahead of time, so hovering shows them at once. Waiting for
 -- on_selected_entity_changed instead costs a full network round trip in multiplayer.
@@ -20,6 +21,8 @@ local MIN_REACH = 3           -- tiles around a changed entity searched for inse
 -- storage.queued[unit_number] = true     inserters already in the queue
 -- storage.bonuses[force_index]           research bonuses the queued updates were based on
 -- storage.announce_cleanup               tell players when all lines are removed (preparing was turned off)
+-- storage.recheck[unit_number] = entity  inserters whose tooltip depends on inputs that change without an
+--                                        event (empty input belt, circuit-set hand size), updated periodically
 -- storage.reach                          tiles from an inserter to its farthest pickup or drop point
 
 local function prepare_ahead()
@@ -85,6 +88,7 @@ local function init_storage()
   storage.queue_keys = storage.queue_keys or {}
   storage.queue_position = storage.queue_position or 1
   storage.queued = storage.queued or {}
+  storage.recheck = storage.recheck or {}
   storage.bonuses = {}
   for _, force in pairs(game.forces) do
     storage.bonuses[force.index] = bonuses(force)
@@ -129,14 +133,26 @@ end
 
 --- Writes the tooltip of one inserter. Returns the analysis, nil if it failed.
 local function write_tooltip(entity, measurement)
+  local key = entity.unit_number
   local ok, result = pcall(calc.analyze, entity)
   if not ok then
     log("Inserter throughput: failed to analyze " .. entity.name .. ": " .. tostring(result))
     display.clear(entity)
+    storage.recheck[key] = nil
     return nil
   end
   display.apply(entity, display.fields(result, measurement))
+  storage.recheck[key] = result.dynamic and entity or nil
   return result
+end
+
+local function maybe_announce_cleanup()
+  -- Hovered inserters keep their lines until the cursor leaves them, so wait for that too.
+  if storage.announce_cleanup and not prepare_ahead() and storage.queue_position > #storage.queue
+      and not next(storage.tracked) then
+    storage.announce_cleanup = nil
+    game.print({"inserter-hover-throughput.cleanup-done"})
+  end
 end
 
 --- Background update of an inserter nobody hovers: the tooltip without the measured line.
@@ -162,10 +178,7 @@ local function process_queue()
   end
   if last >= #queue then
     storage.queue, storage.queue_keys, storage.queue_position = {}, {}, 1
-    if storage.announce_cleanup and not prepare_ahead() then
-      storage.announce_cleanup = nil
-      game.print({"inserter-hover-throughput.cleanup-done"})
-    end
+    maybe_announce_cleanup()
   else
     storage.queue_position = last + 1
   end
@@ -215,6 +228,7 @@ local function drop_entry(key, entry)
   end
   storage.tracked[key] = nil
   if entry.entity.valid then update_idle(entry.entity) end
+  maybe_announce_cleanup()
 end
 
 local function track(player, entity, tick)
@@ -284,6 +298,15 @@ script.on_event(defines.events.on_tick, function(event)
   end
   if storage.queue_position <= #storage.queue then
     process_queue()
+  elseif tick % RECHECK_INTERVAL == 0 and next(storage.recheck) and prepare_ahead() then
+    -- Only when the queue is idle, so this never adds to the background budget.
+    for key, entity in pairs(storage.recheck) do
+      if entity.valid then
+        enqueue(entity)
+      else
+        storage.recheck[key] = nil
+      end
+    end
   end
 end)
 
@@ -311,6 +334,7 @@ script.on_event({
   defines.events.script_raised_destroy,
   defines.events.on_player_rotated_entity,
   defines.events.on_player_flipped_entity,
+  defines.events.on_blueprint_settings_pasted,
 }, function(event)
   on_entity_changed(event.entity)
 end)
@@ -365,6 +389,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
   if setting == "inserter-hover-throughput-prepare-ahead" or setting == "inserter-hover-throughput-show-details" then
     -- Write (or remove) the tooltip of every inserter.
     storage.announce_cleanup = not prepare_ahead()
+    if not prepare_ahead() then storage.recheck = {} end
     enqueue_all(nil)
   end
   refresh_tracked(event.tick)

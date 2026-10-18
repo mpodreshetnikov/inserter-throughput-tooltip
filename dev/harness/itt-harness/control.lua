@@ -60,6 +60,14 @@ local function build(c, idx)
   if c.pick then ins.pickup_position = {cx + c.pick[1], cy + c.pick[2]} end
   if c.drop then ins.drop_position = {cx + c.drop[1], cy + c.drop[2]} end
   if c.lanes == "left" then ins.pickup_from_right_lane = false end
+  if c.circuit then
+    local cc = surface.create_entity{name = "constant-combinator", position = {cx + 3, cy}, force = force}
+    cc.get_control_behavior().get_section(1).set_slot(1, {value = {type = "virtual", name = "signal-S", quality = "normal"}, min = c.circuit})
+    cc.get_wire_connector(defines.wire_connector_id.circuit_red, true).connect_to(ins.get_wire_connector(defines.wire_connector_id.circuit_red, true))
+    local behavior = ins.get_or_create_control_behavior()
+    behavior.circuit_set_stack_size = true
+    behavior.circuit_stack_control_signal = {type = "virtual", name = "signal-S"}
+  end
   if c.filter then ins.use_filters = true; ins.inserter_filter_mode = "whitelist"; ins.set_filter(1, {name = c.filter}) end
   local fuel = not c.ghost and ins.get_fuel_inventory()
   if fuel then fuel.insert{name = "coal", count = 50} end
@@ -110,8 +118,17 @@ local function setup()
   storage.t0 = game.tick
 end
 
-local function feed(st)
-  if st.src_belt then
+local function own_first_value(ins)
+  for _, field in pairs(ins.get_tooltip_fields()) do
+    if type(field.name) == "table" and field.name[1] == "inserter-hover-throughput.throughput" then
+      return helpers.table_to_json({v = field.value})
+    end
+  end
+  return ""
+end
+
+local function feed(st, rel)
+  if st.src_belt and (st.c.feed_delay or 0) <= rel then
     local first = st.src_belt[1]
     for lane = 1, 2 do
       local line = first.get_transport_line(lane)
@@ -131,7 +148,7 @@ script.on_event(defines.events.on_tick, function(e)
   local rel = e.tick - storage.t0
   local measuring = rel > WARM and rel <= WARM + MEASURE
   for _, st in pairs(storage.st) do
-    feed(st)
+    feed(st, rel)
     if st.c.ghost then goto continue end
     local hs = st.ins.held_stack
     local c = hs.valid_for_read and hs.count or 0
@@ -146,7 +163,13 @@ script.on_event(defines.events.on_tick, function(e)
   end
   if rel == WARM then
     -- Tooltips the mod prepared on its own (nobody hovers in a headless server).
-    for _, st in pairs(storage.st) do st.prepared = #st.ins.get_tooltip_fields() end
+    for _, st in pairs(storage.st) do
+      st.prepared = #st.ins.get_tooltip_fields()
+      st.early_value = own_first_value(st.ins)
+    end
+  end
+  if rel == WARM + MEASURE - 1 then
+    for _, st in pairs(storage.st) do st.late_value = own_first_value(st.ins) end
   end
   if rel == WARM + MEASURE then
     local profiler = helpers.create_profiler()
@@ -171,7 +194,8 @@ script.on_event(defines.events.on_tick, function(e)
       local ghost_rate
       print("RESULT " .. helpers.table_to_json({
         pred = pred.rate, pmax = pred.max_rate, pcycle = pred.cycle, plim = pred.limiter, papprox = pred.approximate or false,
-        case = st.c, prepared = st.prepared, phalf = pred.half_swing, pextra = pred.pickup_extra, dextra = pred.drop_extra, pstack = pred.pickup_belt_stack,
+        case = st.c, prepared = st.prepared, early = st.early_value, late = st.late_value,
+        pdynamic = pred.dynamic or false, ptpc = pred.hand_current, phalf = pred.half_swing, pextra = pred.pickup_extra, dextra = pred.drop_extra, pstack = pred.pickup_belt_stack,
         pk = pred.pickup_kind, dk = pred.drop_kind, pitems = pred.items_per_swing, nfields = nfields, ghost = ghost_rate,
         id = st.c.id, rate = st.moved / MEASURE * 60, moved = st.moved, cycles = #st.drops,
         deltas = table.concat(dl, ","), tpc = not st.c.ghost and ins.inserter_target_pickup_count or -1,

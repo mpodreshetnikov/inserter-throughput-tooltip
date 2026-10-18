@@ -162,9 +162,10 @@ local function predict_pickup_correction(half_swing, rotation_speed, extension_s
 end
 
 --- Average stack size of the items on the input belt, 1 if it is empty. Looks at the pickup belt first
---- and then at the belts feeding it, until it has seen enough items.
+--- and then at the belts feeding it, until it has seen enough items. The second result is false when the
+--- belt is empty, so the stack size is not known yet.
 local function belt_item_stack(belt)
-  if is_ghost(belt) then return 1 end
+  if is_ghost(belt) then return 1, true end
   local stacks, items = 0, 0
   local visited = {}
   local current = belt
@@ -188,8 +189,8 @@ local function belt_item_stack(belt)
     if not previous or visited[previous.unit_number] then break end
     current = previous
   end
-  if stacks == 0 then return 1 end
-  return math.max(1, math.floor(items / stacks + 0.5))
+  if stacks == 0 then return 1, false end
+  return math.max(1, math.floor(items / stacks + 0.5)), true
 end
 
 --- The item the inserter moves, when it can be known.
@@ -233,10 +234,13 @@ local function hand_size(inserter, proto, force)
     -- Takes manual override, circuit network and research into account.
     current = math.min(max, inserter.inserter_target_pickup_count)
   end
-  return {base = base, research = research, max = max, current = math.max(1, current)}
+  local behavior = not is_ghost(inserter) and inserter.get_control_behavior()
+  local circuit = behavior and behavior.circuit_set_stack_size or false
+  return {base = base, research = research, max = max, current = math.max(1, current), circuit = circuit}
 end
 
---- Full analysis of one inserter (real or ghost).
+--- Full analysis of one inserter (real or ghost). `dynamic` is set when the result depends on things that
+--- change without an event: an input belt that is still empty, or a hand size set by the circuit network.
 function calc.analyze(inserter)
   local proto = is_ghost(inserter) and inserter.ghost_prototype or inserter.prototype
   local quality = inserter.quality
@@ -269,6 +273,8 @@ function calc.analyze(inserter)
   result.hand_research = hand.research
   result.hand_max = hand.max
   result.hand_current = hand.current
+  -- The circuit network can change the hand size at any time.
+  if hand.circuit then result.dynamic = true end
   result.hand_limited = hand.current < hand.max
   local items = hand.current
   local max_items = hand.max
@@ -327,7 +333,8 @@ function calc.analyze(inserter)
       right_lane = inserter.pickup_from_right_lane
     end
     local lanes = (left_lane and 1 or 0) + (right_lane and 1 or 0)
-    local source_stack = belt_item_stack(pickup_entity)
+    local source_stack, stack_known = belt_item_stack(pickup_entity)
+    if not stack_known then result.dynamic = true end
     if item then source_stack = math.max(1, math.min(source_stack, item.stack_size)) end
     if lanes == 0 then
       limit_per_tick = 0

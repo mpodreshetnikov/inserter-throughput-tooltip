@@ -113,7 +113,7 @@ package.preload["scripts.calc"] = function()
       return {ghost = e.type == "entity-ghost", rate = 7.5, max_rate = 15, approximate = true, pickup_kind = "belt",
               drop_kind = "entity", limiter = "swing", hand_max = 3 + force_a.inserter_stack_size_bonus, hand_base = 1,
               hand_research = 2, hand_current = 3, hand_limited = false, items_per_swing = 3, half_swing = 12,
-              pickup_extra = 0.3, drop_extra = 0, cycle = 24.3}
+              pickup_extra = 0.3, drop_extra = 0, cycle = 24.3, dynamic = e.dynamic}
     end,
   }
 end
@@ -200,6 +200,36 @@ lua.execute("force_a.inserter_stack_size_bonus = 1")
 g.handlers.on_research_finished(lua.eval("{research = {force = force_a}}"))
 g.tick(2)
 check(g.A.analyzed == before + 1, "inserter capacity research rebuilds the tooltips")
+
+# Inserters whose inputs change without events (empty belt, circuit hand size) are rechecked when idle.
+g.A.dynamic = True
+g.handlers.on_player_rotated_entity(lua.eval("function(e) return {entity = e} end")(g.A))
+g.tick(1)
+before_a, before_c = g.A.analyzed, C.analyzed
+g.tick(600)
+check(g.A.analyzed > before_a and C.analyzed == before_c, "dynamic inserters are rechecked periodically, static ones are not")
+g.A.dynamic = False
+g.tick(600)
+after = g.A.analyzed
+g.tick(600)
+check(g.A.analyzed == after, "an inserter stops being rechecked once its inputs are known")
+
+# Pasting a blueprint over an existing inserter updates it.
+before = C.analyzed
+g.handlers.on_blueprint_settings_pasted(lua.eval("function(e) return {entity = e} end")(C))
+g.tick(1)
+check(C.analyzed == before + 1, "blueprint settings paste re-analyzes the inserter")
+
+# Turning preparing off while someone hovers: the announcement waits until the hovered inserter is cleared.
+g.hover(2, g.A)
+g.set_setting("inserter-hover-throughput-prepare-ahead", False)
+g.tick(2)
+check(len(list(g.printed.values())) == 0, "no cleanup announcement while an inserter is still hovered")
+g.hover(2, None)
+check(g.count(g.A) == 0 and len(list(g.printed.values())) == 1, "announcement comes after the hovered inserter is cleared")
+g.set_setting("inserter-hover-throughput-prepare-ahead", True)
+g.tick(2)
+lua.execute("printed = {}")
 
 # Turning preparing off removes every line and says so; turning it on brings them back.
 g.set_setting("inserter-hover-throughput-prepare-ahead", False)
