@@ -3,6 +3,9 @@
 Not part of the mod zip (`../build.sh` packs only the mod files into `dist/<name>_<version>.zip`).
 
 * `PUBLISHING.md`: how to publish on the Factorio Mod Portal.
+* `portal/DESCRIPTION.md`: mod page description (English and Russian) to paste into the Mod Portal.
+* `portal/icon.py`, `portal/render_icon.js`: mod icon variants (`b-tooltip` is the current `thumbnail.png`);
+  `python3 icon.py <out dir> <titillium-web-latin-700-normal.woff2>`, then `node render_icon.js <out dir> b-tooltip ../../thumbnail.png 144`.
 * `harness/itt-harness/`: test mod. In a headless Factorio 2.1.22 server it builds inserters with chests and
   belts (built from `cases.lua`), measures how many items they actually move per tick, and prints the mod's
   prediction next to each measurement.
