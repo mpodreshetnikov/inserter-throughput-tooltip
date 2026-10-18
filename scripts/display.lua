@@ -117,13 +117,28 @@ function display.fields(r, measurement)
 end
 
 local FIELD_PREFIX = "inserter-hover-throughput."
+local LINE_KEY = FIELD_PREFIX .. "line"
+
+--- Tooltip lines stay in the save even after the mod is removed. Wrapped like this, such a leftover line
+--- shows empty text (the "?" picks the fallback once this mod's locale is gone) instead of "Unknown key".
+local function removable(text)
+  return {"?", {LINE_KEY, text}, ""}
+end
+
+local function is_own(name)
+  if type(name) ~= "table" then return false end
+  if name[1] == "?" then
+    return type(name[2]) == "table" and name[2][1] == LINE_KEY
+  end
+  -- Lines written by 1.0.0 were not wrapped.
+  return type(name[1]) == "string" and name[1]:sub(1, #FIELD_PREFIX) == FIELD_PREFIX
+end
 
 --- Ids of the tooltip fields this mod wrote into the entity, in id order.
 local function own_field_ids(entity)
   local ids = {}
   for _, field in pairs(entity.get_tooltip_fields()) do
-    local name = field.name
-    if type(name) == "table" and type(name[1]) == "string" and name[1]:sub(1, #FIELD_PREFIX) == FIELD_PREFIX then
+    if is_own(field.name) then
       ids[#ids + 1] = field.id
     end
   end
@@ -137,8 +152,8 @@ function display.apply(entity, fields)
   for index, field in ipairs(fields) do
     entity.set_tooltip_field{
       id = ids[index],
-      name = field[1],
-      value = field[2],
+      name = removable(field[1]),
+      value = removable(field[2]),
       order = ORDER_BASE + index,
     }
   end

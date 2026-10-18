@@ -95,9 +95,17 @@ function make_entity(kind, x, y)
   entities[#entities + 1] = e
   return e
 end
+-- Lines are wrapped as {"?", {"inserter-hover-throughput.line", text}, ""}.
+function unwrap(text)
+  if type(text) == "table" and text[1] == "?" then return text[2][2] end
+  return text
+end
 function names(e)
   local out = {}
-  for _, f in ipairs(e.get_tooltip_fields()) do out[#out + 1] = type(f.name) == "table" and f.name[1] or f.name end
+  for _, f in ipairs(e.get_tooltip_fields()) do
+    local name = unwrap(f.name)
+    out[#out + 1] = type(name) == "table" and name[1] or name
+  end
   return table.concat(out, ",")
 end
 function count(e) return #e.get_tooltip_fields() end
@@ -172,8 +180,10 @@ for _ = 1, 700 do
   tick(1)
 end
 ''')
-measured = [f for f in g.A.get_tooltip_fields().values() if f.name[1] == "inserter-hover-throughput.measured"][0]
-check(abs(float(measured.value[2]) - 7.5) < 0.2, "measured rate ~7.5/s, got %s" % measured.value[2])
+measured = [f for f in g.A.get_tooltip_fields().values() if g.unwrap(f.name)[1] == "inserter-hover-throughput.measured"][0]
+value = g.unwrap(measured.value)
+check(abs(float(value[2]) - 7.5) < 0.2, "measured rate ~7.5/s, got %s" % value[2])
+check(measured.name[1] == "?" and measured.name[3] == "", "lines fall back to empty text when the mod's locale is gone")
 g.hover(1, None)
 check(g.count(g.A) == 4 and "measured" not in g.names(g.A), "unhover keeps the prepared tooltip, drops the measured line")
 check(g.tracked_count() == 0, "nothing tracked after unhover")

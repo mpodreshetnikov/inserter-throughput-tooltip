@@ -118,10 +118,17 @@ local function setup()
   storage.t0 = game.tick
 end
 
+-- The mod wraps its lines as {"?", {"inserter-hover-throughput.line", text}, ""}.
+local function unwrap(text)
+  if type(text) == "table" and text[1] == "?" then return text[2][2] end
+  return text
+end
+
 local function own_first_value(ins)
   for _, field in pairs(ins.get_tooltip_fields()) do
-    if type(field.name) == "table" and field.name[1] == "inserter-hover-throughput.throughput" then
-      return helpers.table_to_json({v = field.value})
+    local name = unwrap(field.name)
+    if type(name) == "table" and name[1] == "inserter-hover-throughput.throughput" then
+      return helpers.table_to_json({v = unwrap(field.value)})
     end
   end
   return ""
@@ -212,7 +219,8 @@ script.on_event(defines.events.on_tick, function(e)
     local left = 0
     for _, st in pairs(storage.st) do
       for _, field in pairs(st.ins.get_tooltip_fields()) do
-        if type(field.name) == "table" and tostring(field.name[1]):find("^inserter%-hover%-throughput%.") then left = left + 1 end
+        local name = unwrap(field.name)
+        if type(name) == "table" and tostring(name[1]):find("^inserter%-hover%-throughput%.") then left = left + 1 end
       end
     end
     print("CLEANUP_LEFT " .. left)

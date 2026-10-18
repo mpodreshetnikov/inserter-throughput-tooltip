@@ -66,6 +66,7 @@ included; turn on "Also show measured throughput" to see the real rate.
 
 The tooltip lines are stored in the save. Before removing the mod, turn off **Prepare tooltips for all inserters
 in advance** in Settings → Mod settings → Map, wait for the chat message saying the lines were removed, then save.
+If you forget, nothing breaks: the leftover lines show empty text instead of "Unknown key" errors.
 
 ## For modders
 
@@ -102,4 +103,4 @@ Source code and the measurement harness: https://github.com/mpodreshetnikov/inse
 
 **Удаление мода из сохранения:** строки подсказок хранятся в сохранении. Перед удалением мода выключите
 «Готовить подсказки для всех манипуляторов заранее» (Настройки → Настройки модов → Карта), дождитесь сообщения в чате
-и сохраните игру.
+и сохраните игру. Если забыть, ничего не сломается: оставшиеся строки будут пустыми, без ошибок «Unknown key».

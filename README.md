@@ -28,6 +28,7 @@ measured line to see the real rate.
 * Map: **Prepare tooltips for all inserters in advance** (on by default). The lines are written into every
   inserter in the background, so they show the moment you hover, also in multiplayer. Turn it off before removing
   the mod from a save: the mod removes its lines from all inserters and says so in chat, then save.
+  If you skip this, the lines left in the save show empty text instead of "Unknown key" errors.
 * Map: **Show hand stack size, cycle time and upper limit** (on by default).
 * Map: **Also show measured throughput** (off by default).
 * Per player: **Also show throughput above the hovered inserter**: a text label only you can see.

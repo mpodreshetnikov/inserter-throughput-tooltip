@@ -6,6 +6,8 @@ Date: 2026-10-18
       also in multiplayer, where each hover used to wait for a network round trip.
     - Added map setting "Prepare tooltips for all inserters in advance". Turn it off before removing
       the mod from a save: the mod then removes its lines from all inserters.
+    - If the mod is removed without that, its leftover tooltip lines show empty text instead of
+      "Unknown key" errors.
   Optimizations:
     - Belt pickup estimates are cached and read belt contents without per-item objects.
 ---------------------------------------------------------------------------------------------------
