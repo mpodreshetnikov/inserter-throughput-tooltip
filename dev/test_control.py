@@ -20,8 +20,8 @@ script = {
 }
 storage = {}
 settings = {global = {
-  ["inserter-throughput-show-details"] = {value = true},
-  ["inserter-throughput-show-measured"] = {value = true},
+  ["inserter-hover-throughput-show-details"] = {value = true},
+  ["inserter-hover-throughput-show-measured"] = {value = true},
 }}
 logs = {}
 function log(s) logs[#logs + 1] = s end
@@ -36,7 +36,7 @@ end}
 players = {}
 game = {get_player = function(i) return players[i] end}
 local function new_player(i)
-  players[i] = {index = i, mod_settings = {["inserter-throughput-show-label"] = {value = false}}}
+  players[i] = {index = i, mod_settings = {["inserter-hover-throughput-show-label"] = {value = false}}}
   return players[i]
 end
 new_player(1); new_player(2)
@@ -111,9 +111,9 @@ end)
 ''')
 fields = [lua.eval("function(e) local out = {} for id, f in pairs(e.fields) do out[#out+1] = f end return out end")(A)]
 names = [str(f.name[1]) for f in fields[0].values()]
-check("inserter-throughput.measured" in names, "measured field appears after hovering for a while")
-meas = [f for f in fields[0].values() if f.name[1] == "inserter-throughput.measured"][0]
-check(meas.value[1] == "inserter-throughput.measured-value" and abs(float(meas.value[2]) - 7.5) < 0.2,
+check("inserter-hover-throughput.measured" in names, "measured field appears after hovering for a while")
+meas = [f for f in fields[0].values() if f.name[1] == "inserter-hover-throughput.measured"][0]
+check(meas.value[1] == "inserter-hover-throughput.measured-value" and abs(float(meas.value[2]) - 7.5) < 0.2,
       "measured rate ~7.5/s, got %s" % meas.value[2])
 lua.eval("hover")(2, A, 701)
 lua.eval("hover")(1, B, 702)
@@ -123,11 +123,11 @@ lua.eval("hover")(2, None, 703)
 check(A.count_fields() == 0, "A cleared when nobody hovers it")
 check(lua.eval("tracked_count()") == 1, "only B tracked")
 # label on/off
-lua.execute('players[1].mod_settings["inserter-throughput-show-label"].value = true')
-g.handlers.on_runtime_mod_setting_changed(lua.eval('{setting = "inserter-throughput-show-label", tick = 704}'))
+lua.execute('players[1].mod_settings["inserter-hover-throughput-show-label"].value = true')
+g.handlers.on_runtime_mod_setting_changed(lua.eval('{setting = "inserter-hover-throughput-show-label", tick = 704}'))
 check(len(list(g.renders.values())) == 1 and g.renders[1].valid, "label drawn for player 1")
-lua.execute('players[1].mod_settings["inserter-throughput-show-label"].value = false')
-g.handlers.on_runtime_mod_setting_changed(lua.eval('{setting = "inserter-throughput-show-label", tick = 705}'))
+lua.execute('players[1].mod_settings["inserter-hover-throughput-show-label"].value = false')
+g.handlers.on_runtime_mod_setting_changed(lua.eval('{setting = "inserter-hover-throughput-show-label", tick = 705}'))
 check(not g.renders[1].valid, "label removed when setting disabled")
 # entity destroyed while hovered
 B.valid = False
@@ -137,7 +137,7 @@ check(lua.eval("tracked_count()") == 0, "destroyed entity dropped from tracking 
 lua.eval("hover")(1, G, 720)
 lua.eval("run_ticks")(721, 900)
 gnames = [str(f.name[1]) for f in lua.eval("function(e) local out = {} for id, f in pairs(e.fields) do out[#out+1] = f end return out end")(G).values()]
-check("inserter-throughput.measured" not in gnames and len(gnames) == 4, "ghost shows estimate without measured line: %s" % gnames)
+check("inserter-hover-throughput.measured" not in gnames and len(gnames) == 4, "ghost shows estimate without measured line: %s" % gnames)
 # analysis failure is logged, not fatal
 C = lua.eval("make_entity('real')"); C.broken = True
 lua.eval("hover")(1, C, 901)

@@ -141,11 +141,11 @@ def tooltips_page(lang, cases, results):
     cards = []
     for case_id, fields in cases:
         # The measured line is off by default; it is shown on one card only.
-        fields = [f for f in fields if f["name"] != ["inserter-throughput.measured"]]
+        fields = [f for f in fields if f["name"] != ["inserter-hover-throughput.measured"]]
         if case_id.split("|")[1] == "2":
             rate = results[case_id]["rate"]
-            fields = fields + [{"name": ["inserter-throughput.measured"],
-                                "value": ["inserter-throughput.measured-value", "%.1f" % rate, "10"]}]
+            fields = fields + [{"name": ["inserter-hover-throughput.measured"],
+                                "value": ["inserter-hover-throughput.measured-value", "%.1f" % rate, "10"]}]
         cards.append(tooltip_html(case_id, fields, lang))
     return "<!doctype html><html><head><meta charset='utf-8'><style>%s</style></head><body><h1>%s</h1><div class='note'>%s</div><div class='grid'>%s</div></body></html>" % (
         STYLE, html.escape(title), html.escape(note), "\n".join(cards))
@@ -198,11 +198,11 @@ def settings_page():
                 " on" if on else "", "✓" if on else "", html.escape(name), html.escape(desc)))
         return """<div class="win"><div class="win-title">%s</div><div class="tabs">%s</div><div class="inner">
 <div class="group">%s</div>%s</div><div class="buttons"><span class="btn red">%s</span><span class="btn green">%s</span></div></div>""" % (
-            "Настройки модов" if ru else "Mod settings", tab_html, html.escape(locale["mod-name.inserter-throughput-tooltip"]),
+            "Настройки модов" if ru else "Mod settings", tab_html, html.escape(locale["mod-name.inserter-hover-throughput"]),
             "".join(opts), "Отмена" if ru else "Cancel", "Применить" if ru else "Confirm")
 
-    map_options = [("inserter-throughput-show-details", True), ("inserter-throughput-show-measured", False)]
-    player_options = [("inserter-throughput-show-label", False)]
+    map_options = [("inserter-hover-throughput-show-details", True), ("inserter-hover-throughput-show-measured", False)]
+    player_options = [("inserter-hover-throughput-show-label", False)]
     scene = """<div class="world"><div class="caption" style="font-size:14px;color:#c9c4b8;margin:0 0 6px 2px">%s</div><div class="scene">
 <div class="belt" style="top:150px"></div>
 <div class="chest" style="left:560px;top:52px"></div>

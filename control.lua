@@ -48,7 +48,7 @@ local function measured_rate(measurement, tick, cycle)
 end
 
 local function show_label(player)
-  return player.mod_settings["inserter-throughput-show-label"].value
+  return player.mod_settings["inserter-hover-throughput-show-label"].value
 end
 
 local function update_labels(entry, result)
@@ -174,14 +174,14 @@ local function refresh_all(tick)
 end
 
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-  if event.setting:find("^inserter%-throughput%-") then refresh_all(event.tick) end
+  if event.setting:find("^inserter%-hover%-throughput%-") then refresh_all(event.tick) end
 end)
 
 script.on_event(defines.events.on_research_finished, function(event)
   refresh_all(event.tick)
 end)
 
-remote.add_interface("inserter-throughput", {
+remote.add_interface("inserter-hover-throughput", {
   --- Returns the throughput analysis of an inserter (or inserter ghost) as a table, nil otherwise.
   analyze = function(entity)
     if not calc.is_inserter(entity) then return nil end

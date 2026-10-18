@@ -62,7 +62,7 @@ included; turn on "Also show measured throughput" to see the real rate.
 ## For modders
 
 ```lua
-local result = remote.call("inserter-throughput", "analyze", entity) -- inserter or inserter ghost
+local result = remote.call("inserter-hover-throughput", "analyze", entity) -- inserter or inserter ghost
 -- result.rate, result.max_rate (items/s), result.cycle (ticks), result.items_per_swing, result.limiter
 ```
 
