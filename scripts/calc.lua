@@ -21,6 +21,8 @@ local calc = {}
 local ITEM_SPACING = 0.25   -- tiles between two items on a belt lane
 local PICKUP_REACH = 0.2    -- tiles; empirical average hand travel between two belt pickups
 local UPSTREAM_BELTS = 4    -- belts inspected to find out how items are stacked on the input belt
+local STACK_SAMPLE = 8      -- item stacks that are enough to tell the stack size on a belt
+local PICKUP_CACHE_LIMIT = 4096 -- remembered pickup model results
 local EPSILON = 1e-6
 
 calc.belt_types = {
@@ -109,7 +111,7 @@ local function classify_target(inserter, target, position)
 end
 
 --- Evaluates the pickup model: log(measured cycle / physics cycle).
-local function predict_pickup_correction(features)
+local function evaluate_pickup_model(features)
   local sum = 0
   for _, tree in pairs(pickup_model.trees) do
     local feature, threshold, left, right = tree.f, tree.t, tree.l, tree.r
@@ -140,12 +142,41 @@ local function pickup_features(half_swing, rotation_speed, extension_speed, radi
   }
 end
 
---- Belts feeding the given belt, nearest first.
-local function upstream_belts(belt)
-  local list = {}
-  local visited = {[belt.unit_number] = true}
+-- Model results by input; a base has few distinct combinations and the model takes ~0.2 ms to evaluate.
+-- The cache only saves time, results are the same with or without it.
+local pickup_cache = {}
+local pickup_cache_size = 0
+
+local function predict_pickup_correction(half_swing, rotation_speed, extension_speed, radius, belt_speed, pickups, lanes, stack)
+  local key = table.concat({half_swing, rotation_speed, extension_speed, radius, belt_speed, pickups, lanes, stack}, ",")
+  local cached = pickup_cache[key]
+  if cached then return cached end
+  local correction = evaluate_pickup_model(pickup_features(half_swing, rotation_speed, extension_speed, radius,
+    belt_speed, pickups, lanes, stack))
+  if pickup_cache_size >= PICKUP_CACHE_LIMIT then
+    pickup_cache, pickup_cache_size = {}, 0
+  end
+  pickup_cache[key] = correction
+  pickup_cache_size = pickup_cache_size + 1
+  return correction
+end
+
+--- Average stack size of the items on the input belt, 1 if it is empty. Looks at the pickup belt first
+--- and then at the belts feeding it, until it has seen enough items. The second result is false when the
+--- belt is empty, so the stack size is not known yet.
+local function belt_item_stack(belt)
+  if is_ghost(belt) then return 1, true end
+  local stacks, items = 0, 0
+  local visited = {}
   local current = belt
-  for _ = 1, UPSTREAM_BELTS do
+  for _ = 0, UPSTREAM_BELTS do
+    visited[current.unit_number] = true
+    for index = 1, current.get_max_transport_line_index() do
+      local line = current.get_transport_line(index)
+      stacks = stacks + #line
+      items = items + line.get_item_count()
+    end
+    if stacks >= STACK_SAMPLE then break end
     local inputs = current.belt_neighbours.inputs
     local previous = inputs[1]
     for _, input in pairs(inputs) do
@@ -156,29 +187,10 @@ local function upstream_belts(belt)
       end
     end
     if not previous or visited[previous.unit_number] then break end
-    visited[previous.unit_number] = true
-    list[#list + 1] = previous
     current = previous
   end
-  return list
-end
-
---- Average stack size of the items on the input belt (and the belts feeding it), 1 if they are empty.
-local function belt_item_stack(belt)
-  if is_ghost(belt) then return 1 end
-  local stacks, items = 0, 0
-  local sources = upstream_belts(belt)
-  sources[#sources + 1] = belt
-  for _, source in pairs(sources) do
-    for index = 1, source.get_max_transport_line_index() do
-      for _, entry in pairs(source.get_transport_line(index).get_detailed_contents()) do
-        stacks = stacks + 1
-        items = items + entry.stack.count
-      end
-    end
-  end
-  if stacks == 0 then return 1 end
-  return math.max(1, math.floor(items / stacks + 0.5))
+  if stacks == 0 then return 1, false end
+  return math.max(1, math.floor(items / stacks + 0.5)), true
 end
 
 --- The item the inserter moves, when it can be known.
@@ -222,10 +234,13 @@ local function hand_size(inserter, proto, force)
     -- Takes manual override, circuit network and research into account.
     current = math.min(max, inserter.inserter_target_pickup_count)
   end
-  return {base = base, research = research, max = max, current = math.max(1, current)}
+  local behavior = not is_ghost(inserter) and inserter.get_control_behavior()
+  local circuit = behavior and behavior.circuit_set_stack_size or false
+  return {base = base, research = research, max = max, current = math.max(1, current), circuit = circuit}
 end
 
---- Full analysis of one inserter (real or ghost).
+--- Full analysis of one inserter (real or ghost). `dynamic` is set when the result depends on things that
+--- change without an event: an input belt that is still empty, or a hand size set by the circuit network.
 function calc.analyze(inserter)
   local proto = is_ghost(inserter) and inserter.ghost_prototype or inserter.prototype
   local quality = inserter.quality
@@ -258,6 +273,8 @@ function calc.analyze(inserter)
   result.hand_research = hand.research
   result.hand_max = hand.max
   result.hand_current = hand.current
+  -- The circuit network can change the hand size at any time.
+  if hand.circuit then result.dynamic = true end
   result.hand_limited = hand.current < hand.max
   local items = hand.current
   local max_items = hand.max
@@ -316,7 +333,8 @@ function calc.analyze(inserter)
       right_lane = inserter.pickup_from_right_lane
     end
     local lanes = (left_lane and 1 or 0) + (right_lane and 1 or 0)
-    local source_stack = belt_item_stack(pickup_entity)
+    local source_stack, stack_known = belt_item_stack(pickup_entity)
+    if not stack_known then result.dynamic = true end
     if item then source_stack = math.max(1, math.min(source_stack, item.stack_size)) end
     if lanes == 0 then
       limit_per_tick = 0
@@ -324,8 +342,8 @@ function calc.analyze(inserter)
     else
       local pickups = math.ceil(items / source_stack)
       local physics = swing + (pickups - 1) * math.max(1, PICKUP_REACH / extension_speed)
-      local correction = predict_pickup_correction(pickup_features(result.half_swing, rotation_speed, extension_speed,
-        vector_length(pickup_vector), belt_speed, pickups, lanes, source_stack))
+      local correction = predict_pickup_correction(result.half_swing, rotation_speed, extension_speed,
+        vector_length(pickup_vector), belt_speed, pickups, lanes, source_stack)
       correction = math.max(-0.7, math.min(0.7, correction))
       pickup_extra = physics * math.exp(correction) - swing
       local supply_limit = lanes * belt_speed / ITEM_SPACING * source_stack

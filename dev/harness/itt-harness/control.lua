@@ -1,5 +1,6 @@
 local cfg = require("cases")
 local display = require("__inserter-hover-throughput__/scripts/display")
+local calc = require("__inserter-hover-throughput__/scripts/calc")
 local cases = cfg.cases
 local CELL = 24
 local WARM = cfg.warm or 600
@@ -36,7 +37,7 @@ local function build_belt(surface, force, belt, p, axis, run_len)
   local tc = tile_center(p)
   local ents = {}
   for k = -run_len, run_len do
-    local e = surface.create_entity{name = belt, position = {tc.x + k * d[1], tc.y + k * d[2]}, direction = dir, force = force}
+    local e = surface.create_entity{name = belt, position = {tc.x + k * d[1], tc.y + k * d[2]}, direction = dir, force = force, raise_built = true}
     ents[#ents + 1] = e
   end
   return ents
@@ -50,15 +51,23 @@ local function build(c, idx)
   local cx, cy = col * CELL + 0.5, row * CELL + 0.5
   local ins
   if c.ghost then
-    ins = surface.create_entity{name = "entity-ghost", inner_name = c.ins, position = {cx, cy}, direction = c.dir or defines.direction.north, force = force, quality = c.q or "normal"}
+    ins = surface.create_entity{name = "entity-ghost", inner_name = c.ins, position = {cx, cy}, direction = c.dir or defines.direction.north, force = force, quality = c.q or "normal", raise_built = true}
   else
-    ins = surface.create_entity{name = c.ins, position = {cx, cy}, direction = c.dir or defines.direction.north, force = force, quality = c.q or "normal"}
+    ins = surface.create_entity{name = c.ins, position = {cx, cy}, direction = c.dir or defines.direction.north, force = force, quality = c.q or "normal", raise_built = true}
   end
   assert(ins, "failed to build " .. c.ins)
   if c.ovr and c.ovr > 0 then ins.inserter_stack_size_override = c.ovr end
   if c.pick then ins.pickup_position = {cx + c.pick[1], cy + c.pick[2]} end
   if c.drop then ins.drop_position = {cx + c.drop[1], cy + c.drop[2]} end
   if c.lanes == "left" then ins.pickup_from_right_lane = false end
+  if c.circuit then
+    local cc = surface.create_entity{name = "constant-combinator", position = {cx + 3, cy}, force = force}
+    cc.get_control_behavior().get_section(1).set_slot(1, {value = {type = "virtual", name = "signal-S", quality = "normal"}, min = c.circuit})
+    cc.get_wire_connector(defines.wire_connector_id.circuit_red, true).connect_to(ins.get_wire_connector(defines.wire_connector_id.circuit_red, true))
+    local behavior = ins.get_or_create_control_behavior()
+    behavior.circuit_set_stack_size = true
+    behavior.circuit_stack_control_signal = {type = "virtual", name = "signal-S"}
+  end
   if c.filter then ins.use_filters = true; ins.inserter_filter_mode = "whitelist"; ins.set_filter(1, {name = c.filter}) end
   local fuel = not c.ghost and ins.get_fuel_inventory()
   if fuel then fuel.insert{name = "coal", count = 50} end
@@ -67,7 +76,7 @@ local function build(c, idx)
   local axis = (math.abs(axis_x) > math.abs(axis_y)) and {axis_x > 0 and 1 or -1, 0} or {0, axis_y > 0 and 1 or -1}
   local st = {c = c, ins = ins, prev = 0, moved = 0, drops = {}, item = c.item or "iron-plate"}
   if c.src == "chest" then
-    local ch = surface.create_entity{name = "infinity-chest", position = tile_center(pp), force = force}
+    local ch = surface.create_entity{name = "infinity-chest", position = tile_center(pp), force = force, raise_built = true}
     ch.set_infinity_container_filter(1, {name = st.item, count = 100, mode = "exactly"})
     st.src_chest = ch
   elseif c.src == "belt" then
@@ -77,7 +86,7 @@ local function build(c, idx)
     -- unused
   end
   if c.dst == "chest" then
-    local ch = surface.create_entity{name = "infinity-chest", position = tile_center(dp), force = force}
+    local ch = surface.create_entity{name = "infinity-chest", position = tile_center(dp), force = force, raise_built = true}
     ch.remove_unfiltered_items = true
     st.dst_chest = ch
   elseif c.dst == "belt" then
@@ -109,8 +118,24 @@ local function setup()
   storage.t0 = game.tick
 end
 
-local function feed(st)
-  if st.src_belt then
+-- The mod wraps its lines as {"?", {"inserter-hover-throughput.line", text}, ""}.
+local function unwrap(text)
+  if type(text) == "table" and text[1] == "?" then return text[2][2] end
+  return text
+end
+
+local function own_first_value(ins)
+  for _, field in pairs(ins.get_tooltip_fields()) do
+    local name = unwrap(field.name)
+    if type(name) == "table" and name[1] == "inserter-hover-throughput.throughput" then
+      return helpers.table_to_json({v = unwrap(field.value)})
+    end
+  end
+  return ""
+end
+
+local function feed(st, rel)
+  if st.src_belt and (st.c.feed_delay or 0) <= rel then
     local first = st.src_belt[1]
     for lane = 1, 2 do
       local line = first.get_transport_line(lane)
@@ -130,7 +155,7 @@ script.on_event(defines.events.on_tick, function(e)
   local rel = e.tick - storage.t0
   local measuring = rel > WARM and rel <= WARM + MEASURE
   for _, st in pairs(storage.st) do
-    feed(st)
+    feed(st, rel)
     if st.c.ghost then goto continue end
     local hs = st.ins.held_stack
     local c = hs.valid_for_read and hs.count or 0
@@ -143,7 +168,21 @@ script.on_event(defines.events.on_tick, function(e)
     st.prev = c
     ::continue::
   end
+  if rel == WARM then
+    -- Tooltips the mod prepared on its own (nobody hovers in a headless server).
+    for _, st in pairs(storage.st) do
+      st.prepared = #st.ins.get_tooltip_fields()
+      st.early_value = own_first_value(st.ins)
+    end
+  end
+  if rel == WARM + MEASURE - 1 then
+    for _, st in pairs(storage.st) do st.late_value = own_first_value(st.ins) end
+  end
   if rel == WARM + MEASURE then
+    local profiler = helpers.create_profiler()
+    for _, st in pairs(storage.st) do calc.analyze(st.ins) end
+    profiler.stop()
+    log({"", "ANALYZE_PROFILE ", #storage.st, " inserters: ", profiler})
     for i, st in pairs(storage.st) do
       local deltas = {}
       for k = 2, #st.drops do
@@ -156,13 +195,14 @@ script.on_event(defines.events.on_tick, function(e)
       local ins = st.ins
       local pred = remote.call("inserter-hover-throughput", "analyze", ins)
       local fields = display.fields(pred, {rate = st.moved / MEASURE * 60, seconds = MEASURE / 60})
-      local ids = display.apply(ins, {}, fields)
+      display.apply(ins, fields)
       local nfields = #ins.get_tooltip_fields()
       if i <= 40 or st.c.ghost or st.c.filter or st.c.lanes then print("FIELDS " .. st.c.id .. " " .. helpers.table_to_json(ins.get_tooltip_fields())) end
       local ghost_rate
       print("RESULT " .. helpers.table_to_json({
         pred = pred.rate, pmax = pred.max_rate, pcycle = pred.cycle, plim = pred.limiter, papprox = pred.approximate or false,
-        case = st.c, phalf = pred.half_swing, pextra = pred.pickup_extra, dextra = pred.drop_extra, pstack = pred.pickup_belt_stack,
+        case = st.c, prepared = st.prepared, early = st.early_value, late = st.late_value,
+        pdynamic = pred.dynamic or false, ptpc = pred.hand_current, phalf = pred.half_swing, pextra = pred.pickup_extra, dextra = pred.drop_extra, pstack = pred.pickup_belt_stack,
         pk = pred.pickup_kind, dk = pred.drop_kind, pitems = pred.items_per_swing, nfields = nfields, ghost = ghost_rate,
         id = st.c.id, rate = st.moved / MEASURE * 60, moved = st.moved, cycles = #st.drops,
         deltas = table.concat(dl, ","), tpc = not st.c.ghost and ins.inserter_target_pickup_count or -1,
@@ -171,5 +211,18 @@ script.on_event(defines.events.on_tick, function(e)
       }))
     end
     print("DONE")
+  end
+  -- The cleanup used when "prepare in advance" is turned off must remove every line of the mod.
+  -- (Other mods cannot change this mod's settings, so the setting switch itself is covered by dev/test_control.py.)
+  if rel == WARM + MEASURE + 5 then
+    for _, st in pairs(storage.st) do display.clear(st.ins) end
+    local left = 0
+    for _, st in pairs(storage.st) do
+      for _, field in pairs(st.ins.get_tooltip_fields()) do
+        local name = unwrap(field.name)
+        if type(name) == "table" and tostring(name[1]):find("^inserter%-hover%-throughput%.") then left = left + 1 end
+      end
+    end
+    print("CLEANUP_LEFT " .. left)
   end
 end)

@@ -116,26 +116,56 @@ function display.fields(r, measurement)
   return fields
 end
 
---- Writes the fields into the entity tooltip, reusing previously allocated ids.
-function display.apply(entity, ids, fields)
-  local new_ids = {}
+local FIELD_PREFIX = "inserter-hover-throughput."
+local LINE_KEY = FIELD_PREFIX .. "line"
+
+--- Tooltip lines stay in the save even after the mod is removed. Wrapped like this, such a leftover line
+--- shows empty text (the "?" picks the fallback once this mod's locale is gone) instead of "Unknown key".
+local function removable(text)
+  return {"?", {LINE_KEY, text}, ""}
+end
+
+local function is_own(name)
+  if type(name) ~= "table" then return false end
+  if name[1] == "?" then
+    return type(name[2]) == "table" and name[2][1] == LINE_KEY
+  end
+  -- Lines written by 1.0.0 were not wrapped.
+  return type(name[1]) == "string" and name[1]:sub(1, #FIELD_PREFIX) == FIELD_PREFIX
+end
+
+--- Ids of the tooltip fields this mod wrote into the entity, in id order.
+local function own_field_ids(entity)
+  local ids = {}
+  for _, field in pairs(entity.get_tooltip_fields()) do
+    if is_own(field.name) then
+      ids[#ids + 1] = field.id
+    end
+  end
+  table.sort(ids)
+  return ids
+end
+
+--- Writes the fields into the entity tooltip, reusing the lines this mod wrote before.
+function display.apply(entity, fields)
+  local ids = own_field_ids(entity)
   for index, field in ipairs(fields) do
-    new_ids[index] = entity.set_tooltip_field{
+    entity.set_tooltip_field{
       id = ids[index],
-      name = field[1],
-      value = field[2],
+      name = removable(field[1]),
+      value = removable(field[2]),
       order = ORDER_BASE + index,
     }
   end
   for index = #fields + 1, #ids do
     entity.clear_tooltip_field(ids[index])
   end
-  return new_ids
 end
 
-function display.clear(entity, ids)
+--- Removes every line this mod wrote into the entity tooltip.
+function display.clear(entity)
   if not entity.valid then return end
-  for _, id in ipairs(ids) do
+  for _, id in ipairs(own_field_ids(entity)) do
     entity.clear_tooltip_field(id)
   end
 end

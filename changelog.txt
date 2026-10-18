@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 2026-10-18
+  Changes:
+    - Tooltips are prepared for all inserters in the background, so they show the moment you hover,
+      also in multiplayer, where each hover used to wait for a network round trip.
+    - Added map setting "Prepare tooltips for all inserters in advance". Turn it off before removing
+      the mod from a save: the mod then removes its lines from all inserters.
+    - If the mod is removed without that, its leftover tooltip lines show empty text instead of
+      "Unknown key" errors.
+  Optimizations:
+    - Belt pickup estimates are cached and read belt contents without per-item objects.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: 2026-10-18
   Features:

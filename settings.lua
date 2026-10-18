@@ -1,6 +1,13 @@
 data:extend{
   {
     type = "bool-setting",
+    name = "inserter-hover-throughput-prepare-ahead",
+    setting_type = "runtime-global",
+    default_value = true,
+    order = "0",
+  },
+  {
+    type = "bool-setting",
     name = "inserter-hover-throughput-show-details",
     setting_type = "runtime-global",
     default_value = true,

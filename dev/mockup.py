@@ -201,7 +201,8 @@ def settings_page():
             "Настройки модов" if ru else "Mod settings", tab_html, html.escape(locale["mod-name.inserter-hover-throughput"]),
             "".join(opts), "Отмена" if ru else "Cancel", "Применить" if ru else "Confirm")
 
-    map_options = [("inserter-hover-throughput-show-details", True), ("inserter-hover-throughput-show-measured", False)]
+    map_options = [("inserter-hover-throughput-prepare-ahead", True), ("inserter-hover-throughput-show-details", True),
+                   ("inserter-hover-throughput-show-measured", False)]
     player_options = [("inserter-hover-throughput-show-label", False)]
     scene = """<div class="world"><div class="caption" style="font-size:14px;color:#c9c4b8;margin:0 0 6px 2px">%s</div><div class="scene">
 <div class="belt" style="top:150px"></div>
