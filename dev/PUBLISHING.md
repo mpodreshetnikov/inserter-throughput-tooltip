@@ -21,7 +21,7 @@
 2. Загрузите `dist/inserter-throughput-tooltip_1.0.0.zip` (после `./build.sh`).
 3. На странице мода заполните:
    * Category: **Utilities**; Tags: **Logistics** (по желанию **Circuit network**).
-   * License: на ваш выбор, например MIT.
+   * License: MIT (как в `LICENSE`).
    * Description: вставьте `dev/portal/DESCRIPTION.md` (английская и русская части).
    * Иконка мода берётся из `thumbnail.png` в zip; крупные варианты для страницы — `dev/portal/icon-*-512.png`.
    * Gallery: скриншоты из игры.
