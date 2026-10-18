@@ -7,4 +7,4 @@ Date: 2026-10-18
       item stack sizes, stack inserter belt stacking and belt speeds.
     - Live measured throughput while hovering.
     - Optional throughput label above the hovered inserter.
-    - Remote interface "inserter-throughput" with function "analyze(entity)".
+    - Remote interface "inserter-hover-throughput" with function "analyze(entity)".

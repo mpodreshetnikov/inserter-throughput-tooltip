@@ -57,7 +57,7 @@ Errors up to ~1.5% are the measurement window itself (a whole number of cycles).
 ## Remote interface
 
 ```lua
-local result = remote.call("inserter-throughput", "analyze", entity) -- entity: inserter or inserter ghost
+local result = remote.call("inserter-hover-throughput", "analyze", entity) -- entity: inserter or inserter ghost
 -- result.rate, result.max_rate (items/s), result.cycle (ticks), result.items_per_swing, result.limiter, ...
 ```
 
@@ -78,7 +78,7 @@ local result = remote.call("inserter-throughput", "analyze", entity) -- entity: 
 
 ## Development
 
-* `./build.sh` builds `dist/inserter-throughput-tooltip_<version>.zip` for the Mod Portal (mod files only).
+* `./build.sh` builds `dist/inserter-hover-throughput_<version>.zip` for the Mod Portal (mod files only).
 * `dev/` holds the headless test harness, the measurements, the model training script and tests; see `dev/README.md`.
 
 ## License

@@ -1,5 +1,5 @@
 local cfg = require("cases")
-local display = require("__inserter-throughput-tooltip__/scripts/display")
+local display = require("__inserter-hover-throughput__/scripts/display")
 local cases = cfg.cases
 local CELL = 24
 local WARM = cfg.warm or 600
@@ -154,7 +154,7 @@ script.on_event(defines.events.on_tick, function(e)
       for d, n in pairs(deltas) do dl[#dl + 1] = d .. "x" .. n end
       table.sort(dl)
       local ins = st.ins
-      local pred = remote.call("inserter-throughput", "analyze", ins)
+      local pred = remote.call("inserter-hover-throughput", "analyze", ins)
       local fields = display.fields(pred, {rate = st.moved / MEASURE * 60, seconds = MEASURE / 60})
       local ids = display.apply(ins, {}, fields)
       local nfields = #ins.get_tooltip_fields()
