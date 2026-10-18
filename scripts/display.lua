@@ -116,11 +116,26 @@ function display.fields(r, measurement)
   return fields
 end
 
---- Writes the fields into the entity tooltip, reusing previously allocated ids.
-function display.apply(entity, ids, fields)
-  local new_ids = {}
+local FIELD_PREFIX = "inserter-hover-throughput."
+
+--- Ids of the tooltip fields this mod wrote into the entity, in id order.
+local function own_field_ids(entity)
+  local ids = {}
+  for _, field in pairs(entity.get_tooltip_fields()) do
+    local name = field.name
+    if type(name) == "table" and type(name[1]) == "string" and name[1]:sub(1, #FIELD_PREFIX) == FIELD_PREFIX then
+      ids[#ids + 1] = field.id
+    end
+  end
+  table.sort(ids)
+  return ids
+end
+
+--- Writes the fields into the entity tooltip, reusing the lines this mod wrote before.
+function display.apply(entity, fields)
+  local ids = own_field_ids(entity)
   for index, field in ipairs(fields) do
-    new_ids[index] = entity.set_tooltip_field{
+    entity.set_tooltip_field{
       id = ids[index],
       name = field[1],
       value = field[2],
@@ -130,12 +145,12 @@ function display.apply(entity, ids, fields)
   for index = #fields + 1, #ids do
     entity.clear_tooltip_field(ids[index])
   end
-  return new_ids
 end
 
-function display.clear(entity, ids)
+--- Removes every line this mod wrote into the entity tooltip.
+function display.clear(entity)
   if not entity.valid then return end
-  for _, id in ipairs(ids) do
+  for _, id in ipairs(own_field_ids(entity)) do
     entity.clear_tooltip_field(id)
   end
 end

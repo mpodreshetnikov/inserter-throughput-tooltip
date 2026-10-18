@@ -25,6 +25,9 @@ measured line to see the real rate.
 
 ## Settings
 
+* Map: **Prepare tooltips for all inserters in advance** (on by default). The lines are written into every
+  inserter in the background, so they show the moment you hover, also in multiplayer. Turn it off before removing
+  the mod from a save: the mod removes its lines from all inserters and says so in chat, then save.
 * Map: **Show hand stack size, cycle time and upper limit** (on by default).
 * Map: **Also show measured throughput** (off by default).
 * Per player: **Also show throughput above the hovered inserter**: a text label only you can see.
@@ -71,7 +74,7 @@ local result = remote.call("inserter-hover-throughput", "analyze", entity) -- en
 укладка стопками у пакетного манипулятора, стопки на входном конвейере, фильтр полос, нестандартные векторы
 модовых манипуляторов. Значения с конвейера помечены «≈»: средняя ошибка около 2%, остальное совпадает с игрой.
 
-Настройки: «Показывать размер пачки, цикл и предел» (карта, вкл.), «Дополнительно показывать измеренную
+Настройки: «Готовить подсказки для всех манипуляторов заранее» (карта, вкл.; выключите перед удалением мода из сохранения), «Показывать размер пачки, цикл и предел» (карта, вкл.), «Дополнительно показывать измеренную
 скорость» (карта, выкл.), «Дублировать скорость надписью над манипулятором» (для игрока, выкл.).
 
 ---

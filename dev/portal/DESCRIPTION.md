@@ -49,6 +49,7 @@ included; turn on "Also show measured throughput" to see the real rate.
 
 ## Settings
 
+* Map: **Prepare tooltips for all inserters in advance** (on by default)
 * Map: **Show hand stack size, cycle time and upper limit** (on by default)
 * Map: **Also show measured throughput** (off by default)
 * Per player: **Also show throughput above the hovered inserter**, a text label only you can see (off by default)
@@ -57,7 +58,14 @@ included; turn on "Also show measured throughput" to see the real rate.
 
 * Factorio 2.1.22 or newer. Space Age and Quality are optional.
 * Works with modded inserters, ghosts, multiplayer.
-* Only inserters that someone is hovering are processed, so there is no cost in big bases.
+* Tooltips are prepared in the background, 10 inserters per tick and only when something changes
+  (an inserter or a belt next to it is built, removed or rotated, or hand size research completes),
+  so they show instantly, also in multiplayer.
+
+## Removing the mod from a save
+
+The tooltip lines are stored in the save. Before removing the mod, turn off **Prepare tooltips for all inserters
+in advance** in Settings → Mod settings → Map, wait for the chat message saying the lines were removed, then save.
 
 ## For modders
 
@@ -90,3 +98,8 @@ Source code and the measurement harness: https://github.com/mpodreshetnikov/inse
 всегда готовы. Реальную скорость покажет опция «Дополнительно показывать измеренную скорость».
 
 **Совместимость:** Factorio 2.1.22+, Space Age и Quality не обязательны, мультиплеер, призраки, модовые манипуляторы.
+Подсказки готовятся заранее в фоне (10 манипуляторов за тик, только при изменениях), поэтому видны сразу, в том числе в мультиплеере.
+
+**Удаление мода из сохранения:** строки подсказок хранятся в сохранении. Перед удалением мода выключите
+«Готовить подсказки для всех манипуляторов заранее» (Настройки → Настройки модов → Карта), дождитесь сообщения в чате
+и сохраните игру.
