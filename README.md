@@ -80,3 +80,7 @@ local result = remote.call("inserter-throughput", "analyze", entity) -- entity: 
 
 * `./build.sh` builds `dist/inserter-throughput-tooltip_<version>.zip` for the Mod Portal (mod files only).
 * `dev/` holds the headless test harness, the measurements, the model training script and tests; see `dev/README.md`.
+
+## License
+
+MIT, see `LICENSE`.
